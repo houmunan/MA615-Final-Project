@@ -2,10 +2,9 @@
 title: "Twitter Geolocator Project"
 author: "Munan Hou, Tian Xia"
 date: "November 27, 2016"
-output: html_document
+output: pdf_document
 ---
-
-```{r include=FALSE}
+```{r, include =FALSE}
 library(ROAuth)
 library(streamR)
 library(twitteR)
@@ -17,47 +16,19 @@ library(ggmap)
 library(grid) 
 library(dplyr)
 library(wordcloud)
+library(plyr)
+library(stringr)
+library(dplyr)
+library(wordcloud)
+library(gridExtra)
+library(topicmodels)
 ```
 
-#Description
-This project uses package:twitteR and package:streamR to analyse word frequencies of a mass amount of Twitter, compare them among different locations, and is trying to find some underlying relations of the data.
+#1 Data Description
+This project uses Twitter related packages to analyse word frequencies of a mass amount of Twitter, compares them among different locations, tries to find some underlying relations of the data.
 
-#Parts
-I would like to generate both time and location based results.
-
-1. Data Grabbing and Cleaning
-2. Geolocation Analysis
-3. Popularity Analysis
-4. Text mining
-5. Conclusion
-
-#Detail of the main part of this paper
-1. Data Grabbing and Cleaning
-
-Use package:streamR to stream 29 sample twitter dataset, each sample includes 5 minutes' twitter within an specific hour (from the last hour of 30 Nov to the fourth hour of 1 Dec (Est)).
-
-Cleaning includes: Merge all the subdatasets and add time_mark (for further adjustment of time-zone error, and geolocation analysis), clean the datasets, filter out sub-datasets for five states (MA, NY, DC, IL, CA).
-
-2. Geolocation Analysis:
-
-Generate an interactive distribution plot of all twitters, using ShinyApp, to showed the trend of all twitter's distribution within the continent of United States through timeline, within about one day(and a little more at both tails), separated by the intervals of one hour. I was planned to use ggvis here until I realized that it is based on ShinyApp, and what I want to do is only available in the ShinyApp.
-
-The app is in another project's folder within this repository named "app".
-
-
-3. Popularity Analysis: Test their differences among five different states (MA, NY, DC, IL, CA).
-
-
-4. Text mining: 
-
-Generate a wordcloud, which means, to generate a proper corpus first.
-
-##################XIATIAN##XIATIAN###############
-
-
-#1. Grab the data
-
-```{r echo=FALSE}
+We use 29 sample twitter dataset and each sample includes 5 minutes' twitter within an specific hour (from the last hour of 30 Nov to the fourth hour of 1 Dec (Est)). 
+```{r,eval=FALSE}
 ########## Inputs of Secrets (Hidden)
 #requestURL <- "https://api.twitter.com/oauth/request_token"
 #accessURL <- "https://api.twitter.com/oauth/access_token"
@@ -68,7 +39,8 @@ Generate a wordcloud, which means, to generate a proper corpus first.
 #access_secret <- "MfV3oHNk4iFUIOcE74JOmDQ2Sx3pArrV9pjktWY4Sd43C"
 
 ########## Prepare for streamR
-#my_oauth <- OAuthFactory$new(consumerKey = consumerKey, consumerSecret = consumerSecret, #requestURL = requestURL, accessURL = accessURL, authURL = authURL)
+#my_oauth <- OAuthFactory$new(consumerKey = consumerKey, consumerSecret = consumerSecret, 
+#requestURL = requestURL, accessURL = accessURL, authURL = authURL)
 #my_oauth$handshake(cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
 #save(my_oauth, file = "my_oauth.Rdata")
 #load("my_oauth.Rdata")
@@ -96,117 +68,80 @@ Generate a wordcloud, which means, to generate a proper corpus first.
 #             oauth = my_oauth)
 #
 ```
+Here we grabbed 29 datasets and each contains 300 seconds grabbing of tweets. The filter are the region within United States "(-125, 25, -66, 50)". As long as continuously grabbing 24 hours' Twitter data will definitely overflow my RAM and ruin my computer, so my strategy is capturing a 300 seconds (5 minutes) sample for each hour of the day. 
 
+#2 Data Cleaning
+We merge all the subdatasets and add time_mark (for further adjustment of time-zone error, and geolocation analysis), clean the datasets, filter out sub-datasets for five states (MA, NY, DC, IL, CA).
 
-Here I grabbed 29 datasets, each contains 300 seconds grabbing of tweets. The filter are the region within United States, "(-125, 25, -66, 50)". As long as continuing grab 24 hours' twitter will definitely overflow my RAM and crash my computer, so my strategy is: Capture a 300 seconds (5 minutes) sample for each hour of the day. The code is like this:
-
-
-...and the datasets are under the location of this project.
-
-#2. Data cleaning and tidying.
-I imported all the datasets into R, and marked them with different labels of their belonging hours, such as, 0, 1, 2, 3, ... , 28, each represents 23:00 ~ 23:59 of 29 Nov, 00:00 ~ 00:59 of 30 Nov, etc.
+We imported all the datasets into R, and marked them with different labels of their belonging hours, such as, 0, 1, 2, 3, ... , 28, each represents 23:00 ~ 23:59 of 29 Nov, 00:00 ~ 00:59 of 30 Nov, etc.
 ```{r, warning=FALSE}
-tweets_00.df <- parseTweets("tweetsUS_1129_23.json",verbose = FALSE)
-tweets_01.df <- parseTweets("tweetsUS_1130_00.json",verbose = FALSE)
-tweets_02.df <- parseTweets("tweetsUS_1130_01.json",verbose = FALSE)
-tweets_03.df <- parseTweets("tweetsUS_1130_02.json",verbose = FALSE)
-tweets_04.df <- parseTweets("tweetsUS_1130_03.json",verbose = FALSE)
-tweets_05.df <- parseTweets("tweetsUS_1130_04.json",verbose = FALSE)
-tweets_06.df <- parseTweets("tweetsUS_1130_05.json",verbose = FALSE)
-tweets_07.df <- parseTweets("tweetsUS_1130_06.json",verbose = FALSE)
-tweets_08.df <- parseTweets("tweetsUS_1130_07.json",verbose = FALSE)
-tweets_09.df <- parseTweets("tweetsUS_1130_08.json",verbose = FALSE)
-tweets_10.df <- parseTweets("tweetsUS_1130_09.json",verbose = FALSE)
-tweets_11.df <- parseTweets("tweetsUS_1130_10.json",verbose = FALSE)
-tweets_12.df <- parseTweets("tweetsUS_1130_11.json",verbose = FALSE)
-tweets_13.df <- parseTweets("tweetsUS_1130_12.json",verbose = FALSE)
-tweets_14.df <- parseTweets("tweetsUS_1130_13.json",verbose = FALSE)
-tweets_15.df <- parseTweets("tweetsUS_1130_14.json",verbose = FALSE)
-tweets_16.df <- parseTweets("tweetsUS_1130_15.json",verbose = FALSE)
-tweets_17.df <- parseTweets("tweetsUS_1130_16.json",verbose = FALSE)
-tweets_18.df <- parseTweets("tweetsUS_1130_17.json",verbose = FALSE)
-tweets_19.df <- parseTweets("tweetsUS_1130_18.json",verbose = FALSE)
-tweets_20.df <- parseTweets("tweetsUS_1130_19.json",verbose = FALSE)
-tweets_21.df <- parseTweets("tweetsUS_1130_20.json",verbose = FALSE)
-tweets_22.df <- parseTweets("tweetsUS_1130_21.json",verbose = FALSE)
-tweets_23.df <- parseTweets("tweetsUS_1130_22.json",verbose = FALSE)
-tweets_24.df <- parseTweets("tweetsUS_1130_23.json",verbose = FALSE)
-tweets_25.df <- parseTweets("tweetsUS_1201_00.json",verbose = FALSE)
-tweets_26.df <- parseTweets("tweetsUS_1201_01.json",verbose = FALSE)
-tweets_27.df <- parseTweets("tweetsUS_1201_02.json",verbose = FALSE)
-tweets_28.df <- parseTweets("tweetsUS_1201_03.json",verbose = FALSE)
+tweets_00.df <- parseTweets("./data/tweetsUS_1129_23.json",verbose = FALSE)
+tweets_01.df <- parseTweets("./data/tweetsUS_1130_00.json",verbose = FALSE)
+tweets_02.df <- parseTweets("./data/tweetsUS_1130_01.json",verbose = FALSE)
+tweets_03.df <- parseTweets("./data/tweetsUS_1130_02.json",verbose = FALSE)
+tweets_04.df <- parseTweets("./data/tweetsUS_1130_03.json",verbose = FALSE)
+tweets_05.df <- parseTweets("./data/tweetsUS_1130_04.json",verbose = FALSE)
+tweets_06.df <- parseTweets("./data/tweetsUS_1130_05.json",verbose = FALSE)
+tweets_07.df <- parseTweets("./data/tweetsUS_1130_06.json",verbose = FALSE)
+tweets_08.df <- parseTweets("./data/tweetsUS_1130_07.json",verbose = FALSE)
+tweets_09.df <- parseTweets("./data/tweetsUS_1130_08.json",verbose = FALSE)
+tweets_10.df <- parseTweets("./data/tweetsUS_1130_09.json",verbose = FALSE)
+tweets_11.df <- parseTweets("./data/tweetsUS_1130_10.json",verbose = FALSE)
+tweets_12.df <- parseTweets("./data/tweetsUS_1130_11.json",verbose = FALSE)
+tweets_13.df <- parseTweets("./data/tweetsUS_1130_12.json",verbose = FALSE)
+tweets_14.df <- parseTweets("./data/tweetsUS_1130_13.json",verbose = FALSE)
+tweets_15.df <- parseTweets("./data/tweetsUS_1130_14.json",verbose = FALSE)
+tweets_16.df <- parseTweets("./data/tweetsUS_1130_15.json",verbose = FALSE)
+tweets_17.df <- parseTweets("./data/tweetsUS_1130_16.json",verbose = FALSE)
+tweets_18.df <- parseTweets("./data/tweetsUS_1130_17.json",verbose = FALSE)
+tweets_19.df <- parseTweets("./data/tweetsUS_1130_18.json",verbose = FALSE)
+tweets_20.df <- parseTweets("./data/tweetsUS_1130_19.json",verbose = FALSE)
+tweets_21.df <- parseTweets("./data/tweetsUS_1130_20.json",verbose = FALSE)
+tweets_22.df <- parseTweets("./data/tweetsUS_1130_21.json",verbose = FALSE)
+tweets_23.df <- parseTweets("./data/tweetsUS_1130_22.json",verbose = FALSE)
+tweets_24.df <- parseTweets("./data/tweetsUS_1130_23.json",verbose = FALSE)
+tweets_25.df <- parseTweets("./data/tweetsUS_1201_00.json",verbose = FALSE)
+tweets_26.df <- parseTweets("./data/tweetsUS_1201_01.json",verbose = FALSE)
+tweets_27.df <- parseTweets("./data/tweetsUS_1201_02.json",verbose = FALSE)
+tweets_28.df <- parseTweets("./data/tweetsUS_1201_03.json",verbose = FALSE)
 ```
-I can't fix the warning messages, but this part just works fine to me.
-
-Then, add "time_mark" to each of the dataframes.
+Then, add "time_mark" to each of the dataframes and keep only needed variables.
 ```{r}
-tweets_00.df[,"time_mark"] <- as.integer(00)
-tweets_01.df[,"time_mark"] <- as.integer(01)
-tweets_02.df[,"time_mark"] <- as.integer(02)
-tweets_03.df[,"time_mark"] <- as.integer(03)
-tweets_04.df[,"time_mark"] <- as.integer(04)
-tweets_05.df[,"time_mark"] <- as.integer(05)
-tweets_06.df[,"time_mark"] <- as.integer(06)
-tweets_07.df[,"time_mark"] <- as.integer(07)
-tweets_08.df[,"time_mark"] <- as.integer(08)
-tweets_09.df[,"time_mark"] <- as.integer(09)
-tweets_10.df[,"time_mark"] <- as.integer(10)
-tweets_11.df[,"time_mark"] <- as.integer(11)
-tweets_12.df[,"time_mark"] <- as.integer(12)
-tweets_13.df[,"time_mark"] <- as.integer(13)
-tweets_14.df[,"time_mark"] <- as.integer(14)
-tweets_15.df[,"time_mark"] <- as.integer(15)
-tweets_16.df[,"time_mark"] <- as.integer(16)
-tweets_17.df[,"time_mark"] <- as.integer(17)
-tweets_18.df[,"time_mark"] <- as.integer(18)
-tweets_19.df[,"time_mark"] <- as.integer(19)
-tweets_20.df[,"time_mark"] <- as.integer(20)
-tweets_21.df[,"time_mark"] <- as.integer(21)
-tweets_22.df[,"time_mark"] <- as.integer(22)
-tweets_23.df[,"time_mark"] <- as.integer(23)
-tweets_24.df[,"time_mark"] <- as.integer(24)
-tweets_25.df[,"time_mark"] <- as.integer(25)
-tweets_26.df[,"time_mark"] <- as.integer(26)
-tweets_27.df[,"time_mark"] <- as.integer(27)
+tweets_00.df[,"time_mark"] <- as.integer(00);tweets_01.df[,"time_mark"] <- as.integer(01)
+tweets_02.df[,"time_mark"] <- as.integer(02);tweets_03.df[,"time_mark"] <- as.integer(03)
+tweets_04.df[,"time_mark"] <- as.integer(04);tweets_05.df[,"time_mark"] <- as.integer(05)
+tweets_06.df[,"time_mark"] <- as.integer(06);tweets_07.df[,"time_mark"] <- as.integer(07)
+tweets_08.df[,"time_mark"] <- as.integer(08);tweets_09.df[,"time_mark"] <- as.integer(09)
+tweets_10.df[,"time_mark"] <- as.integer(10);tweets_11.df[,"time_mark"] <- as.integer(11)
+tweets_12.df[,"time_mark"] <- as.integer(12);tweets_13.df[,"time_mark"] <- as.integer(13)
+tweets_14.df[,"time_mark"] <- as.integer(14);tweets_15.df[,"time_mark"] <- as.integer(15)
+tweets_16.df[,"time_mark"] <- as.integer(16);tweets_17.df[,"time_mark"] <- as.integer(17)
+tweets_18.df[,"time_mark"] <- as.integer(18);tweets_19.df[,"time_mark"] <- as.integer(19)
+tweets_20.df[,"time_mark"] <- as.integer(20);tweets_21.df[,"time_mark"] <- as.integer(21)
+tweets_22.df[,"time_mark"] <- as.integer(22);tweets_23.df[,"time_mark"] <- as.integer(23)
+tweets_24.df[,"time_mark"] <- as.integer(24);tweets_25.df[,"time_mark"] <- as.integer(25)
+tweets_26.df[,"time_mark"] <- as.integer(26);tweets_27.df[,"time_mark"] <- as.integer(27)
 tweets_28.df[,"time_mark"] <- as.integer(28)
-```
 
-Then, keep only needed variables:
-```{r}
-keep <- c("text","lang","listed_count","geo_enabled","statuses_count","followers_count","favourites_count","friends_count","time_zone","country_code","full_name","place_lat","place_lon","time_mark")
-tweets_00.df <- tweets_00.df[,keep]
-tweets_01.df <- tweets_01.df[,keep]
-tweets_02.df <- tweets_02.df[,keep]
-tweets_03.df <- tweets_03.df[,keep]
-tweets_04.df <- tweets_04.df[,keep]
-tweets_05.df <- tweets_05.df[,keep]
-tweets_06.df <- tweets_06.df[,keep]
-tweets_07.df <- tweets_07.df[,keep]
-tweets_08.df <- tweets_08.df[,keep]
-tweets_09.df <- tweets_09.df[,keep]
-tweets_10.df <- tweets_10.df[,keep]
-tweets_11.df <- tweets_11.df[,keep]
-tweets_12.df <- tweets_12.df[,keep]
-tweets_13.df <- tweets_13.df[,keep]
-tweets_14.df <- tweets_14.df[,keep]
-tweets_15.df <- tweets_15.df[,keep]
-tweets_16.df <- tweets_16.df[,keep]
-tweets_17.df <- tweets_17.df[,keep]
-tweets_18.df <- tweets_18.df[,keep]
-tweets_19.df <- tweets_19.df[,keep]
-tweets_20.df <- tweets_20.df[,keep]
-tweets_21.df <- tweets_21.df[,keep]
-tweets_22.df <- tweets_22.df[,keep]
-tweets_23.df <- tweets_23.df[,keep]
-tweets_24.df <- tweets_24.df[,keep]
-tweets_25.df <- tweets_25.df[,keep]
-tweets_26.df <- tweets_26.df[,keep]
-tweets_27.df <- tweets_27.df[,keep]
+keep <- c("text","lang","listed_count","geo_enabled","statuses_count","followers_count",
+          "favourites_count","friends_count","time_zone","country_code","full_name",
+          "place_lat","place_lon","time_mark")
+tweets_00.df <- tweets_00.df[,keep];tweets_01.df <- tweets_01.df[,keep]
+tweets_02.df <- tweets_02.df[,keep];tweets_03.df <- tweets_03.df[,keep]
+tweets_04.df <- tweets_04.df[,keep];tweets_05.df <- tweets_05.df[,keep]
+tweets_06.df <- tweets_06.df[,keep];tweets_07.df <- tweets_07.df[,keep]
+tweets_08.df <- tweets_08.df[,keep];tweets_09.df <- tweets_09.df[,keep]
+tweets_10.df <- tweets_10.df[,keep];tweets_11.df <- tweets_11.df[,keep]
+tweets_12.df <- tweets_12.df[,keep];tweets_13.df <- tweets_13.df[,keep]
+tweets_14.df <- tweets_14.df[,keep];tweets_15.df <- tweets_15.df[,keep]
+tweets_16.df <- tweets_16.df[,keep];tweets_17.df <- tweets_17.df[,keep]
+tweets_18.df <- tweets_18.df[,keep];tweets_19.df <- tweets_19.df[,keep]
+tweets_20.df <- tweets_20.df[,keep];tweets_21.df <- tweets_21.df[,keep]
+tweets_22.df <- tweets_22.df[,keep];tweets_23.df <- tweets_23.df[,keep]
+tweets_24.df <- tweets_24.df[,keep];tweets_25.df <- tweets_25.df[,keep]
+tweets_26.df <- tweets_26.df[,keep];tweets_27.df <- tweets_27.df[,keep]
 tweets_28.df <- tweets_28.df[,keep]
-```
 
-Merge all the datasets,
-```{r}
 tweets.df <- rbind(tweets_00.df,tweets_01.df,tweets_02.df,tweets_03.df,tweets_04.df,
                    tweets_05.df,tweets_06.df,tweets_07.df,tweets_08.df,tweets_09.df,
                    tweets_10.df,tweets_11.df,tweets_12.df,tweets_13.df,tweets_14.df,
@@ -215,28 +150,20 @@ tweets.df <- rbind(tweets_00.df,tweets_01.df,tweets_02.df,tweets_03.df,tweets_04
                    tweets_25.df,tweets_26.df,tweets_27.df,tweets_28.df)
 # back up: write.csv(tweets.df,"tweets.df.csv") 
 ```
-
-And, as long as tweets.df is too large while generating word cloud, I choose a subset. the sample for the wordcloud part:
-
-
-Remove tweets with no geo_enabled and not English. Also filter tweets with extreme locations.
+Next, remove tweets with no geo_enabled and not English, and filter tweets with extreme locations. After that, prepare the five-state sub-datasets, for further popularity analysis:
 ```{r}
 #Remove tweets with no geo_enabled and not English
 tweets.df <- tweets.df[tweets.df$lang=="en",]
 tweets.df <- tweets.df[tweets.df$geo_enabled==TRUE,]
 #clean up extreme values
-tweets.df <- tweets.df[tweets.df$place_lat >25 & tweets.df$place_lat <50 & tweets.df$place_lon > -125 & tweets.df$place_lon< -66,]
-```
-
-After that, prepare the five-state sub-datasets, for further popularity analysis:
-```{r}
+tweets.df <- tweets.df[tweets.df$place_lat >25 & tweets.df$place_lat <50 & 
+                         tweets.df$place_lon > -125 & tweets.df$place_lon< -66,]
 #Filter different places
 ca <- data.frame(filter(tweets.df, grepl(', CA', full_name)))
 il <- data.frame(filter(tweets.df, grepl(', IL', full_name)))
 ma <- data.frame(filter(tweets.df, grepl(', MA', full_name)))
 ny <- data.frame(filter(tweets.df, grepl(', NY', full_name)))
 dc <- data.frame(filter(tweets.df, grepl(', DC', full_name)))
-
 #Adjust based on time zone
 ma <- ma %>% filter(time_mark >= 1 & time_mark <= 24)
 ny <- ny %>% filter(time_mark >= 1 & time_mark <= 24)
@@ -246,85 +173,38 @@ ca$time_mark <- ca$time_mark - 3
 il <- il %>% filter(time_mark >= 2 & time_mark <= 25)
 il$time_mark <- il$time_mark - 1
 ```
-
-Just have a look:
-```{r, warning=FALSE}
-qmplot(place_lon, place_lat, data = ma, colour = I('purple'), size = I(3), mapcolor = "color")
-qmplot(place_lon, place_lat, data = ny, colour = I('red'), size = I(3), mapcolor = "color")
-qmplot(place_lon, place_lat, data = il, colour = I('green'), size = I(3), mapcolor = "color")
-qmplot(place_lon, place_lat, data = ca, colour = I('blue'), size = I(3), mapcolor = "color")
-```
-The plot looks good.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#1 Data Description
-```{r, include=FALSE}
-library(plyr)
-library(stringr)
-library(dplyr)
-library(ggplot2)
-library(tm)
-library(wordcloud)
-library(gridExtra)
-library(topicmodels)
-```
-#2 Data Cleaning
-
 #3 Geolocation Analysis
+First of all, we want to generate an interactive distribution plot of all twitters using ShinyApp to show the trend of all twitter's distribution within the continent of United States through timeline in one day(and a little more at both tails).
 
+**The app is in another project's folder within this repository named "app".**
+
+After that we also plot the Twitter activity in MA, NY, IL and CA respectively.
+```{r, warning=FALSE,message=FALSE}
+qmplot(place_lon, place_lat, data = ma, colour = I('purple'), size = I(3), 
+       mapcolor = "color", main="MA")
+qmplot(place_lon, place_lat, data = ny, colour = I('red'), size = I(3),
+       mapcolor = "color", main="NY")
+qmplot(place_lon, place_lat, data = il, colour = I('green'), size = I(3), 
+       mapcolor = "color", main="IL")
+qmplot(place_lon, place_lat, data = ca, colour = I('blue'), size = I(3), 
+       mapcolor = "color",main="CA")
+```
+There is no doubt that most tweets are posted in some major cities and in the following sections we will analyze this pattern in different states and cities.
 ```{r}
 #time_mark start from 0
-ca[,"time_mark"] <- ca[,"time_mark"]-1
-ny[,"time_mark"] <- ny[,"time_mark"]-1
-il[,"time_mark"] <- il[,"time_mark"]-1
-dc[,"time_mark"] <- dc[,"time_mark"]-1
+ca[,"time_mark"] <- ca[,"time_mark"]-1;ny[,"time_mark"] <- ny[,"time_mark"]-1
+il[,"time_mark"] <- il[,"time_mark"]-1;dc[,"time_mark"] <- dc[,"time_mark"]-1
 ma[,"time_mark"] <- ma[,"time_mark"]-1
 
 #add new variable state
-ca[,"state"] <- rep("CA",nrow(ca))
-ny[,"state"] <- rep("NY",nrow(ny))
-il[,"state"] <- rep("IL",nrow(il))
-dc[,"state"] <- rep("DC",nrow(dc))
+ca[,"state"] <- rep("CA",nrow(ca));ny[,"state"] <- rep("NY",nrow(ny))
+il[,"state"] <- rep("IL",nrow(il));dc[,"state"] <- rep("DC",nrow(dc))
 ma[,"state"] <- rep("MA",nrow(ma))
 
 #get city name
-ma$full_name <- as.character(ma$full_name)
-ny$full_name <- as.character(ny$full_name)
-il$full_name <- as.character(il$full_name)
-ca$full_name <- as.character(ca$full_name)
+ma$full_name <- as.character(ma$full_name);ny$full_name <- as.character(ny$full_name)
+il$full_name <- as.character(il$full_name);ca$full_name <- as.character(ca$full_name)
 dc$full_name <- as.character(dc$full_name)
-
 
 get_city <- function(x){
   city_name <- c()
@@ -335,11 +215,9 @@ get_city <- function(x){
   return(city_name)
 }
 
-
-ma[,"city"] <- factor(get_city(ma))
-ny[,"city"] <- factor(get_city(ny))
-il[,"city"] <- factor(get_city(il))
-ca[,"city"] <- factor(get_city(ca))
+# transform to factor
+ma[,"city"] <- factor(get_city(ma));ny[,"city"] <- factor(get_city(ny))
+il[,"city"] <- factor(get_city(il));ca[,"city"] <- factor(get_city(ca))
 dc[,"city"] <- factor(get_city(dc))
 
 #combine together
@@ -347,12 +225,9 @@ total <- rbind(rbind(rbind(rbind(ca,ny),il),dc),ma)
 total$lang <- as.character(total$lang)
 total <- filter(total,lang=="en")
 
-
 #factor time_mark
-ma[,"time_mark"] <- factor(ma[,"time_mark"])
-ca[,"time_mark"] <- factor(ca[,"time_mark"])
-ny[,"time_mark"] <- factor(ny[,"time_mark"])
-dc[,"time_mark"] <- factor(dc[,"time_mark"])
+ma[,"time_mark"] <- factor(ma[,"time_mark"]);ca[,"time_mark"] <- factor(ca[,"time_mark"])
+ny[,"time_mark"] <- factor(ny[,"time_mark"]);dc[,"time_mark"] <- factor(dc[,"time_mark"])
 il[,"time_mark"] <- factor(il[,"time_mark"])
 
 total_time_count <- data.frame("Num_tweet"=c(summary(ma$time_mark),summary(ca$time_mark),
@@ -582,7 +457,7 @@ fit <- hclust(distMatrix, method = "complete")
 p <- plot(fit, xlab="")
 p <- rect.hclust(fit, k=6)
 ```
-As is shown in the cluster Dendrogram, 'can', 'latest', 'careerarc', 'hiring', 'job' are in one cluster, which really makes sense that they are all related to jobs. But other clusters are dfficult to interpret and the word 'eduaubdedubu' appears again. We should look back to the text data cleaning and find out how we can make sure every word in my output is meaningful.
+As is shown in the cluster Dendrogram, 'can', 'latest', 'careerarc', 'hiring', 'job' are in one cluster, which really makes sense that they are all related to jobs. But other clusters are dfficult to interpret and the words like 'dont', 'like' should de deleted in the early steps. So we need look back to the text data cleaning and find out how we can make sure every word in my output is meaningful.
 
 #6 Conclusion
 In this Twitter data analysis project, (how to get the data and clean the data). Then I analyze the number of tweets and the density of tweets that are posted in different states and cities, making some plots to compare in different situations. I also use t test and permutation test to check the whether MA and IL have the same density mean in one day. Next, I find the relations among followers count, liseted count and friends count which could represent the popularity in Twitter. Finally, I plot the most frequent words with their wordcloud and conduct clustering analysis on the text data.
