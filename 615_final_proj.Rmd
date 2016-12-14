@@ -1,6 +1,6 @@
 ---
 title: "Twitter Geolocator Project"
-author: "Munan Hou, Tian Xia"
+author: "Tian Xia, Munan Hou"
 date: "November 27, 2016"
 output: pdf_document
 ---
